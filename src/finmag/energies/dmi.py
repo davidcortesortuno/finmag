@@ -4,8 +4,21 @@ from aeon import timer
 from finmag.field import Field
 from energy_base import EnergyBase
 from finmag.util.helpers import times_curl
+import numpy as np
 
 logger = logging.getLogger('finmag')
+
+
+def cyl_rho(r):
+    """Cylindrical unit vector rho
+    
+    The unit vector is defined as a vector field::
+    .. math::
+        \\hat{\\rho} = \\cos(\\phi) \\hat{x} + \\sin(\\phi) \\hat{y}
+    """
+    phi = np.arctan2(r[1], r[0])
+    return [np.cos(phi), np.sin(phi), 0.0]
+
 
 class DMI(EnergyBase):
     """
@@ -49,10 +62,17 @@ class DMI(EnergyBase):
     """
 
     def __init__(self, D, method='box-matrix-petsc', name='DMI',
-                 dmi_type='auto'):
+                 dmi_type='auto', dmi_system='cartesian'):
         self.D_value = D  # Value of D, later converted to a Field object.
         self.name = name
         self.dmi_type = dmi_type
+
+        # Set unit vector rho
+        if dmi_system == 'cylindrical':
+            # Equivalent: df.VectorFunctionSpace(e.mesh, "Lagrange", 1, dim=3)
+            S3 = df.VectorFunctionSpace(self.m.mesh, 'CG', 1)
+            self.rho_field = Field(S3)
+            self.rho_field.set(cyl_rho)
 
         super(DMI, self).__init__(method, in_jacobian=True)
 
@@ -80,6 +100,9 @@ class DMI(EnergyBase):
         if self.dmi_type is 'interfacial':
             E_integrand = DMI_interfacial(m, self.dmi_factor*self.D.f,
                                           dim=dmi_dim)
+        elif self.dmi_type is 'interfacial_cyl':
+            E_integrand = DMI_interfacial_cylindrical(m, self.dmi_factor*self.D.f,
+                                                      dim=dmi_dim)
         elif self.dmi_type is 'D2D':
             E_integrand = DMI_D2D(m, self.dmi_factor*self.D.f,
                                   dim=dmi_dim)
@@ -136,6 +159,19 @@ def DMI_interfacial(m, D, dim):
     mz = m.f[2]
 
     return D*(mx * dmzdx - mz * dmxdx) + D*(my * dmzdy - mz * dmydy)
+
+
+def DMI_interfacial_cylindrical(m, D, dim):
+    """
+    Interfacial DMI for cylindrical system with out-of-surface normal vector
+
+    Only working in 3d for now
+    """
+    m_dot_gradr = df.dot(self.m.f, df.grad(df.dot(self.rho_field.f, self.m.f)))
+    gradm_dot_rm = df.dot(df.div(self.m.f), df.dot(self.rho_field.f, self.m.f))
+
+    return D * (m_dot_gradr - gradm_dot_rm)
+
 
 def DMI_D2D(m, D, dim):
     """
