@@ -61,14 +61,13 @@ class DMI(EnergyBase):
             H_dmi_np = dmi_np.compute_field()
     """
 
-    def __init__(self, D, method='box-matrix-petsc', name='DMI',
-                 dmi_type='auto', dmi_system='cartesian'):
+    def __init__(self, D, method='box-matrix-petsc', name='DMI', dmi_type='auto'):
         self.D_value = D  # Value of D, later converted to a Field object.
         self.name = name
         self.dmi_type = dmi_type
 
         # Set unit vector rho
-        if dmi_system == 'cylindrical':
+        if dmi_type == 'interfacial_cyl':
             # Equivalent: df.VectorFunctionSpace(e.mesh, "Lagrange", 1, dim=3)
             S3 = df.VectorFunctionSpace(self.m.mesh, 'CG', 1)
             self.rho_field = Field(S3)
@@ -87,23 +86,23 @@ class DMI(EnergyBase):
         # Multiplication factor used for dmi energy computation.
         self.dmi_factor = df.Constant(1.0/unit_length)
 
-        if self.dmi_type is '1d':
+        if self.dmi_type == '1d':
             dmi_dim = 1
-        elif self.dmi_type is '2d':
+        elif self.dmi_type == '2d':
             dmi_dim = 2
-        elif self.dmi_type is '3d':
+        elif self.dmi_type == '3d':
             dmi_dim = 3
         else:
             dmi_dim = m.mesh_dim()
 
         # Select the right expression for computing the dmi energy.
-        if self.dmi_type is 'interfacial':
+        if self.dmi_type == 'interfacial':
             E_integrand = DMI_interfacial(m, self.dmi_factor*self.D.f,
                                           dim=dmi_dim)
-        elif self.dmi_type is 'interfacial_cyl':
-            E_integrand = DMI_interfacial_cylindrical(m, self.dmi_factor*self.D.f,
-                                                      dim=dmi_dim)
-        elif self.dmi_type is 'D2D':
+        elif self.dmi_type == 'interfacial_cyl':
+            E_integrand = DMI_interfacial_cylindrical(m, self.rho_field,
+                                                      self.dmi_factor*self.D.f)
+        elif self.dmi_type == 'D2D':
             E_integrand = DMI_D2D(m, self.dmi_factor*self.D.f,
                                   dim=dmi_dim)
         else:
@@ -161,14 +160,14 @@ def DMI_interfacial(m, D, dim):
     return D*(mx * dmzdx - mz * dmxdx) + D*(my * dmzdy - mz * dmydy)
 
 
-def DMI_interfacial_cylindrical(m, D, dim):
+def DMI_interfacial_cylindrical(m, rho_field, D):
     """
     Interfacial DMI for cylindrical system with out-of-surface normal vector
 
     Only working in 3d for now
     """
-    m_dot_gradr = df.dot(self.m.f, df.grad(df.dot(self.rho_field.f, self.m.f)))
-    gradm_dot_rm = df.dot(df.div(self.m.f), df.dot(self.rho_field.f, self.m.f))
+    m_dot_gradr = df.dot(m.f, df.grad(df.dot(rho_field.f, m.f)))
+    gradm_dot_rm = df.dot(df.div(m.f), df.dot(rho_field.f, m.f))
 
     return D * (m_dot_gradr - gradm_dot_rm)
 
