@@ -17,7 +17,7 @@ def cyl_rho(r):
         \\hat{\\rho} = \\cos(\\phi) \\hat{x} + \\sin(\\phi) \\hat{y}
     """
     phi = np.arctan2(r[1], r[0])
-    return [np.cos(phi), np.sin(phi), 0.0]
+    return np.array([np.cos(phi), np.sin(phi), 0.0])
 
 
 class DMI(EnergyBase):
@@ -66,13 +66,6 @@ class DMI(EnergyBase):
         self.name = name
         self.dmi_type = dmi_type
 
-        # Set unit vector rho
-        if dmi_type == 'interfacial_cyl':
-            # Equivalent: df.VectorFunctionSpace(e.mesh, "Lagrange", 1, dim=3)
-            S3 = df.VectorFunctionSpace(self.m.mesh, 'CG', 1)
-            self.rho_field = Field(S3)
-            self.rho_field.set(cyl_rho)
-
         super(DMI, self).__init__(method, in_jacobian=True)
 
 
@@ -100,6 +93,11 @@ class DMI(EnergyBase):
             E_integrand = DMI_interfacial(m, self.dmi_factor*self.D.f,
                                           dim=dmi_dim)
         elif self.dmi_type == 'interfacial_cyl':
+            # Equivalent: df.VectorFunctionSpace(e.mesh, "Lagrange", 1, dim=3)
+            S3 = df.VectorFunctionSpace(m.mesh(), 'CG', 1, 3)
+            # rho_field = Field(S3)
+            # rho_field.set(cyl_rho)
+            self.rho_field = df.interpolate(df.Expression(['cos(atan2(x[1], x[0]))', 'sin(atan2(x[1], x[0]))', '0.0'], degree=1), S3)
             E_integrand = DMI_interfacial_cylindrical(m, self.rho_field,
                                                       self.dmi_factor*self.D.f)
         elif self.dmi_type == 'D2D':
@@ -166,10 +164,12 @@ def DMI_interfacial_cylindrical(m, rho_field, D):
 
     Only working in 3d for now
     """
-    m_dot_gradr = df.dot(m.f, df.grad(df.dot(rho_field.f, m.f)))
-    gradm_dot_rm = df.dot(df.div(m.f), df.dot(rho_field.f, m.f))
+    mn = df.inner(rho_field, m.f)
+    # mn = rho_field[0] * m.f[0] + rho_field[1] * m.f[1] + rho_field[2] * m.f[2]
+    m_dot_gradr = df.inner(m.f, df.grad(mn))
+    gradm_x_rm = df.inner(mn, df.div(m.f))
 
-    return D * (m_dot_gradr - gradm_dot_rm)
+    return D * (m_dot_gradr - gradm_x_rm)
 
 
 def DMI_D2D(m, D, dim):
