@@ -90,19 +90,19 @@ class DMI(EnergyBase):
 
         # Select the right expression for computing the dmi energy.
         if self.dmi_type == 'interfacial':
-            E_integrand = DMI_interfacial(m, self.dmi_factor*self.D.f,
-                                          dim=dmi_dim)
+            E_integrand = DMI_interfacial(m, self.dmi_factor*self.D.f, dim=dmi_dim)
         elif self.dmi_type == 'interfacial_cyl':
             # Equivalent: df.VectorFunctionSpace(e.mesh, "Lagrange", 1, dim=3)
             S3 = df.VectorFunctionSpace(m.mesh(), 'CG', 1, 3)
             # rho_field = Field(S3)
             # rho_field.set(cyl_rho)
             self.rho_field = df.interpolate(df.Expression(['cos(atan2(x[1], x[0]))', 'sin(atan2(x[1], x[0]))', '0.0'], degree=1), S3)
-            E_integrand = DMI_interfacial_cylindrical(m, self.rho_field,
-                                                      self.dmi_factor*self.D.f)
+            # self.rho_field = []
+            # self.rho_field.append(Field(df.FunctionSpace(m.mesh(), 'DG', 1), df.Expression('cos(atan2(x[1], x[0]))', degree=1)))
+            # self.rho_field.append(Field(df.FunctionSpace(m.mesh(), 'DG', 1), df.Expression('sin(atan2(x[1], x[0]))', degree=1)))
+            E_integrand = DMI_interfacial_cylindrical(m, self.rho_field, self.dmi_factor*self.D.f)
         elif self.dmi_type == 'D2D':
-            E_integrand = DMI_D2D(m, self.dmi_factor*self.D.f,
-                                  dim=dmi_dim)
+            E_integrand = DMI_D2D(m, self.dmi_factor*self.D.f, dim=dmi_dim)
         else:
             E_integrand = self.dmi_factor*self.D.f*times_curl(m.f, dmi_dim)
 
@@ -164,12 +164,34 @@ def DMI_interfacial_cylindrical(m, rho_field, D):
 
     Only working in 3d for now
     """
-    mn = df.inner(rho_field, m.f)
-    # mn = rho_field[0] * m.f[0] + rho_field[1] * m.f[1] + rho_field[2] * m.f[2]
-    m_dot_gradr = df.inner(m.f, df.grad(mn))
-    gradm_x_rm = df.inner(mn, df.div(m.f))
 
-    return D * (m_dot_gradr - gradm_x_rm)
+    mx = m.f[0]
+    my = m.f[1]
+    mz = m.f[2]
+
+    # mn = df.inner(rho_field, m.f)
+
+    # S1 = df.FunctionSpace(m.mesh(), 'DG', 1)
+    # mn = df.interpolate(df.Expression('mx * cos(atan2(x[1], x[0])) + my * sin(atan2(x[1], x[0]))', 
+    #                                   mx=m.f.sub(0), my=m.f.sub(1), degree=1), S1)
+
+    mn = rho_field[0] * mx + rho_field[1] * my
+    # mn_grad = df.grad(mn)
+    # m_dot_gradr = m.f[0] * mn_grad[0] + m.f[1] * mn_grad[1] + m.f[2] * mn_grad[2]
+                                  #
+    gradm = df.grad(m.f)
+    dmxdx = gradm[0, 0]
+    dmydx = gradm[1, 0]
+    dmxdy = gradm[0, 1]
+    dmydy = gradm[1, 1]
+    dmxdz = gradm[0, 2]
+    dmydz = gradm[1, 2]
+
+    gradm_x_rm = df.inner(mn, df.div(m.f))
+    m_dot_gradr = (rho_field[0] * (mx * dmxdx + my * dmxdy + mz * dmxdz) +
+                   rho_field[1] * (mx * dmydx + my * dmydy + mz * dmydz)) 
+
+    return D * (gradm_x_rm - m_dot_gradr)
 
 
 def DMI_D2D(m, D, dim):
