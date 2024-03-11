@@ -105,7 +105,7 @@ class UniaxialAnisotropyCylindrical(EnergyBase):
         self.K2 = Field(cg_scalar_functionspace, self.K2_value, name='K2')
 
         cg_vector_functionspace = df.VectorFunctionSpace(m.mesh(), 'CG', 1, 3)
-        self.axis = Field(cg_vector_functionspace, df.Expression('(cos(atan2(x[1], x[0])),sin(atan2(x[1], x[0])),0)', degree=3), name='axis')
+        self.axis = Field(cg_vector_functionspace, df.Expression(('cos(atan2(x[1], x[0]))', 'sin(atan2(x[1], x[0]))', '0'), degree=3), name='axis')
 
         # Anisotropy energy
         # HF's version inline with nmag, breaks comparison with analytical
