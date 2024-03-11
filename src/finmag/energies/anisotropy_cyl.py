@@ -59,7 +59,7 @@ class UniaxialAnisotropyCylindrical(EnergyBase):
 
     """
 
-    def __init__(self, K1, K2, method="box-matrix-petsc", name='AnisotropyCylindrical', assemble=True):
+    def __init__(self, K1, K2=0, method="box-matrix-petsc", name='AnisotropyCylindrical', assemble=True):
         """
         Define a uniaxial anisotropy with (first) anisotropy constant `K1`
         (in J/m^3) and easy axis `axis`.
