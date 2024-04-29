@@ -99,7 +99,7 @@ class DMI(EnergyBase):
 
         # Select the right expression for computing the dmi energy.
         if self.dmi_type == 'interfacial':
-            E_integrand = DMI_interfacial(m, self.dmi_factor*self.D.f, dim=dmi_dim)
+            E_integrand = DMI_interfacial(m, self.dmi_factor*self.D[0].f, dim=dmi_dim)
         elif self.dmi_type == 'interfacial_cyl':
             # Equivalent: df.VectorFunctionSpace(e.mesh, "Lagrange", 1, dim=3)
             # S3 = df.VectorFunctionSpace(m.mesh(), 'CG', 1, 3)
@@ -118,14 +118,14 @@ class DMI(EnergyBase):
             # self.rho_field.append(Field(df.FunctionSpace(m.mesh(), 'DG', 1), df.Expression('cos(atan2(x[1], x[0]))', degree=1)))
             # self.rho_field.append(Field(df.FunctionSpace(m.mesh(), 'DG', 1), df.Expression('sin(atan2(x[1], x[0]))', degree=1)))
             
-            E_integrand = DMI_interfacial_cylindrical(m, self.rho_field, self.dmi_factor*self.D.f)
+            E_integrand = DMI_interfacial_cylindrical(m, self.rho_field, self.dmi_factor*self.D[0].f)
         # elif self.dmi_type == 'D2D':
         #     E_integrand = DMI_D2D(m, self.dmi_factor*self.D.f, dim=dmi_dim)
         elif self.dmi_type in ['C_nv', 'D_n', 'D_2d', 'C_n', 'S_4']:
             D_fields = [ self.dmi_factor * x.f for x in self.D ]
             E_integrand = LI_assembler(m, D_fields, self.dmi_type)
         else:
-            E_integrand = self.dmi_factor*self.D.f*times_curl(m.f, dmi_dim)
+            E_integrand = self.dmi_factor*self.D[0].f*times_curl(m.f, dmi_dim)
 
         super(DMI, self).setup(E_integrand, m, Ms, unit_length)
 
