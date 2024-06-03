@@ -109,7 +109,9 @@ class DMI(EnergyBase):
             # rho_field.set(cyl_rho)
             # self.rho_field = df.interpolate(df.Expression(['cos(atan2(x[1], x[0]))', 'sin(atan2(x[1], x[0]))', '0.0'], degree=1), S3)
             
-            S0 = df.FunctionSpace(m.mesh(), 'DG', 0)
+            # Lagrange field (Continuos Galerkin) with 1 dof per vertex, and continuous across cells
+            # If we used 'DG', dim=0; we would have 1 dof per cell (centre of tetrahedra)
+            S0 = df.FunctionSpace(m.mesh(), 'CG', 1)
             self.rho_field = []
             self.rho_field.append(df.interpolate(df.Expression('cos(atan2(x[1], x[0]))', degree=1), S0))
             self.rho_field.append(df.interpolate(df.Expression('sin(atan2(x[1], x[0]))', degree=1), S0))
